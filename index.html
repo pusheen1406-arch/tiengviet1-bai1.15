@@ -79,7 +79,7 @@
             { word: "hề", "spell": "hờ ê hê huyền hề, hề" }, { word: "lễ", "spell": "lờ ê lê ngã lễ, lễ" }, { word: "lè", "spell": "lờ e le huyền lè, lè" },
             { word: "hồ", "spell": "hờ ô hô huyền hồ, hồ" }, { word: "lá", "spell": "lờ a la sắc lá, lá" }, { word: "lò", "spell": "lờ o lo huyền lò, lò" },
             { word: "hà", "spell": "hờ a ha huyền hà, hà" }, { word: "cụ", "spell": "cờ u cu nặng cụ, cụ" }, { word: "dù", "spell": "dờ u du huyền dù, dù" },
-            { word: "đủ", "spell": "đờ u đu hỏi đủ, đủ" }, { word: "dữ", "spell": "dờ u du ngã dữ, dữ" }, { word: "cũ", "spell": "cờ u cu ngã cũ, cũ" },
+            { word: "đủ", "spell": "đờ u đu hỏi đủ, đủ" }, { word: "dữ", "spell": "dờ u du ngã dữ, dữ" }, { word: "cũ", "spell": "cờ u cu hỏi cũ, cũ" },
             { word: "lũ", "spell": "lờ u lu ngã lũ, lũ" }, { word: "củ", "spell": "cờ u cu hỏi củ, củ" }, { word: "bự", "spell": "bờ ư bư nặng bự, bự" },
             { word: "chú", "spell": "chờ u chu sắc chú, chú" }, { word: "khá", "spell": "khờ a kha sắc khá, khá" }, { word: "chị", "spell": "chờ i chi nặng chị, chị" },
             { word: "chữ", "spell": "chờ ư chư ngã chữ, chữ" }, { word: "khó", "spell": "khờ o kho sắc khó, khó" }, { word: "chè", "spell": "chờ e che huyền chè, chè" },
@@ -144,10 +144,10 @@
         };
 
         const initialRawData = {
-            p1Count: 10, p2Count: 10, p3Count: 10,
-            part1: generateQuestionsList(rawPart1Database, 10),
-            part2: generateQuestionsList(rawPart2Database, 10),
-            part3: generateQuestionsList(rawPart3Database, 10)
+            p1Count: 15, p2Count: 15, p3Count: 20,
+            part1: generateQuestionsList(rawPart1Database, 15),
+            part2: generateQuestionsList(rawPart2Database, 15),
+            part3: generateQuestionsList(rawPart3Database, 20)
         };
 
         const calculateWordScore = (spoken, wordObj) => {
@@ -160,7 +160,7 @@
             if (spokenWords.length === 1 && spokenWords[0] === mainWordClean) return 100;
             let spellMatched = 0; spellWords.forEach(w => { if (spokenWords.includes(w)) spellMatched++; });
             const spellRatio = spellWords.length > 0 ? (spellMatched / spellWords.length) : 1;
-            if (spellRatio >= 0.8) return 100; else return Math.round(85 + (spellRatio / 0.8) * 10);
+            if (spellRatio >= 0.8) return 100; else return Math.round(30 + (spellRatio / 0.8) * 10);
         };
 
         const calculateSentenceScore = (spoken, targetSentence) => {
@@ -176,7 +176,7 @@
             return Math.min(100, percent);
         };
 
-        const speakText = async (text, rate = 0.85) => {
+        const speakText = async (text, rate = 0.30) => {
             if (!text) return;
             if (window.responsiveVoice && window.responsiveVoice.isPlaying()) window.responsiveVoice.cancel();
             if (window.currentAudio) { window.currentAudio.pause(); window.currentAudio = null; }
@@ -219,14 +219,14 @@
                 return { p1: [], p2: [], p3: [] };
             });
 
-            // State cài đặt mức độ đọc (Cập nhật mặc định: Mức đạt 30%, Mức xuất sắc 60%)
+            // State cài đặt mức độ đọc
             const [passThreshold, setPassThreshold] = useState(() => {
                 const saved = localStorage.getItem(STORAGE_KEY_PASS_THRESH);
                 return saved !== null ? Number(saved) : 30;
             }); 
             const [perfectThreshold, setPerfectThreshold] = useState(() => {
                 const saved = localStorage.getItem(STORAGE_KEY_PERFECT_THRESH);
-                return saved !== null ? Number(saved) : 60;
+                return saved !== null ? Number(saved) : 50;
             }); 
 
             const [activeTab, setActiveTab] = useState('p1');
@@ -295,9 +295,9 @@
                     if (percent >= currentPassThreshold) {
                         setScores(prev => { const newScore = prev.p1 + 1; if (newScore > 0 && newScore % 10 === 0) { triggerMegaFireworks(); setShowMilestone(true); } return { ...prev, p1: newScore }; });
                         setCompletedHistory(prev => { if (!prev.p1.includes(targetWord)) return { ...prev, p1: [...prev.p1, targetWord] }; return prev; });
-                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Tuyệt vời! Bé đọc chính xác đạt mức xuất sắc! (${percent}%)` : `✔️ Bé đọc rất tốt! (${percent}%)`;
+                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Tuyệt vời! Bé đọc chính xác 100%! (${percent}%)` : `✔️ Bé đọc rất tốt! (${percent}%)`;
                         setFeedbackState({ status: 'correct', msg: successMsg });
-                    } else { setFeedbackState({ status: 'wrong', msg: `❌ Chưa đạt yêu cầu (${percent}%). AI nghe được: "${transcript}". Bé hãy thử lại nhé!` }); }
+                    } else { setFeedbackState({ status: 'wrong', msg: `❌ Chưa chính xác lắm (${percent}%). AI nghe được: "${transcript}". Bé hãy thử lại nhé!` }); }
                 } else if (currentTab === 'p2') {
                     const targetSentenceOrigin = data.part2[curIdx];
                     const percent = calculateSentenceScore(transcript, targetSentenceOrigin);
@@ -306,9 +306,9 @@
                     if (percent >= currentPassThreshold) {
                         setScores(prev => { const newScore = prev.p2 + 1; if (newScore > 0 && newScore % 10 === 0) { triggerMegaFireworks(); setShowMilestone(true); } return { ...prev, p2: newScore }; });
                         setCompletedHistory(prev => { if (!prev.p2.includes(targetSentenceOrigin)) return { ...prev, p2: [...prev.p2, targetSentenceOrigin] }; return prev; });
-                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Rất xuất sắc! Bé đọc câu đạt mức hoàn hảo! (${percent}%)` : `✔️ Bé đọc câu rất tuyệt vời! (${percent}%)`;
+                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Rất xuất sắc! Bé đọc đúng 100%! (${percent}%)` : `✔️ Bé đọc câu rất tuyệt vời! (${percent}%)`;
                         setFeedbackState({ status: 'correct', msg: successMsg });
-                    } else { setFeedbackState({ status: 'wrong', msg: `❌ Chưa đạt yêu cầu (${percent}%). AI nghe được: "${transcript}". Bé thử đọc lại nhé!` }); }
+                    } else { setFeedbackState({ status: 'wrong', msg: `❌ Chưa đúng (${percent}%). AI nghe được: "${transcript}". Bé thử đọc lại nhé!` }); }
                 }
             };
 
@@ -357,7 +357,7 @@
             const handleAdminLogin = (e) => { e.preventDefault(); if (passInput === adminPassword) { setIsAdminAuth(true); setLoginError(''); setPassInput(''); } else { setLoginError('Mật khẩu không đúng!'); } };
 
             const handleUpdateCounts = (p1, p2, p3) => {
-                const n1 = Math.max(1, Math.min(200, p1)); const n2 = Math.max(1, Math.min(200, p2)); const n3 = Math.max(1, Math.min(300, p3));
+                const n1 = Math.max(10, Math.min(200, p1)); const n2 = Math.max(10, Math.min(200, p2)); const n3 = Math.max(10, Math.min(300, p3));
                 setData({ p1Count: n1, p2Count: n2, p3Count: n3, part1: generateQuestionsList(rawPart1Database, n1), part2: generateQuestionsList(rawPart2Database, n2), part3: generateQuestionsList(rawPart3Database, n3) });
                 setIndices({ p1: 0, p2: 0, p3: 0 }); setScores({ p1: 0, p2: 0, p3: 0 }); setIsCompleted({ p1: false, p2: false, p3: false });
             };
@@ -365,7 +365,7 @@
             const handleResetDefault = () => {
                 if (window.confirm("Khôi phục mặc định và xoá lịch sử học tập?")) {
                     setData(initialRawData); setAdminPassword(ADMIN_PASSWORD_DEFAULT); setCompletedHistory({ p1: [], p2: [], p3: [] });
-                    setPassThreshold(30); setPerfectThreshold(60);
+                    setPassThreshold(30); setPerfectThreshold(50);
                     localStorage.removeItem(STORAGE_KEY_DATA); localStorage.removeItem(STORAGE_KEY_PASS); localStorage.removeItem(STORAGE_KEY_HISTORY);
                     localStorage.removeItem(STORAGE_KEY_PASS_THRESH); localStorage.removeItem(STORAGE_KEY_PERFECT_THRESH); 
                     alert("Đã khôi phục thành công!");
@@ -538,13 +538,13 @@
                                         
                                         {/* Cấu hình Số lượng câu hỏi */}
                                         <div className="bg-emerald-50 p-4 rounded-2xl border-2 border-emerald-200 space-y-4">
-                                            <h3 className="font-black text-emerald-800">📊 Số lượng câu hỏi (1-300):</h3>
-                                            <div className="flex justify-between"><span className="font-bold text-sm">Phần 1:</span><input type="number" min="1" max="300" value={data.p1Count} onChange={(e) => handleUpdateCounts(Number(e.target.value), data.p2Count, data.p3Count)} className="w-24 p-1 border-2 rounded text-center" /></div>
-                                            <div className="flex justify-between"><span className="font-bold text-sm">Phần 2:</span><input type="number" min="1" max="300" value={data.p2Count} onChange={(e) => handleUpdateCounts(data.p1Count, Number(e.target.value), data.p3Count)} className="w-24 p-1 border-2 rounded text-center" /></div>
-                                            <div className="flex justify-between"><span className="font-bold text-sm">Phần 3:</span><input type="number" min="1" max="300" value={data.p3Count} onChange={(e) => handleUpdateCounts(data.p1Count, data.p2Count, Number(e.target.value))} className="w-24 p-1 border-2 rounded text-center" /></div>
+                                            <h3 className="font-black text-emerald-800">📊 Số lượng câu hỏi (10-300):</h3>
+                                            <div className="flex justify-between"><span className="font-bold text-sm">Phần 1:</span><input type="number" min="10" max="300" value={data.p1Count} onChange={(e) => handleUpdateCounts(Number(e.target.value), data.p2Count, data.p3Count)} className="w-24 p-1 border-2 rounded text-center" /></div>
+                                            <div className="flex justify-between"><span className="font-bold text-sm">Phần 2:</span><input type="number" min="10" max="300" value={data.p2Count} onChange={(e) => handleUpdateCounts(data.p1Count, Number(e.target.value), data.p3Count)} className="w-24 p-1 border-2 rounded text-center" /></div>
+                                            <div className="flex justify-between"><span className="font-bold text-sm">Phần 3:</span><input type="number" min="10" max="300" value={data.p3Count} onChange={(e) => handleUpdateCounts(data.p1Count, data.p2Count, Number(e.target.value))} className="w-24 p-1 border-2 rounded text-center" /></div>
                                         </div>
 
-                                        {/* Cấu hình Ngưỡng điểm */}
+                                        {/* Cấu hình Ngưỡng điểm (Mới thêm) */}
                                         <div className="bg-sky-50 p-4 rounded-2xl border-2 border-sky-200 space-y-4 mt-4">
                                             <h3 className="font-black text-sky-800">🎯 Cài đặt mức độ đọc đúng (%):</h3>
                                             <div className="flex justify-between items-center">
