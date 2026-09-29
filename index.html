@@ -55,6 +55,7 @@
         const STORAGE_KEY_DATA = "tv1_review_app_data_v7";
         const STORAGE_KEY_PASS = "tv1_review_admin_pass_v7";
         const STORAGE_KEY_HISTORY = "tv1_review_history_v7";
+        // KEY lưu trữ cài đặt điểm số
         const STORAGE_KEY_PASS_THRESH = "tv1_review_pass_thresh_v7";
         const STORAGE_KEY_PERFECT_THRESH = "tv1_review_perfect_thresh_v7";
 
@@ -142,27 +143,37 @@
             return result.slice(0, targetCount);
         };
 
-        // Đã cập nhật số câu hỏi mặc định thành 10, 10, 10 ở mỗi phần
         const initialRawData = {
-            p1Count: 10, p2Count: 10, p3Count: 10,
-            part1: generateQuestionsList(rawPart1Database, 10),
-            part2: generateQuestionsList(rawPart2Database, 10),
-            part3: generateQuestionsList(rawPart3Database, 10)
+            p1Count: 15, p2Count: 15, p3Count: 20,
+            part1: generateQuestionsList(rawPart1Database, 15),
+            part2: generateQuestionsList(rawPart2Database, 15),
+            part3: generateQuestionsList(rawPart3Database, 20)
         };
 
-        // HÀM CHẤM ĐIỂM ĐƯỢC ĐIỀU CHỈNH: Luôn đánh giá cao, phóng khoáng và khuyến khích học sinh
         const calculateWordScore = (spoken, wordObj) => {
-            const spokenClean = cleanStr(spoken); 
-            if (!spokenClean) return 0; 
-            // Luôn đánh giá cao giọng đọc của học sinh, không cho điểm thấp
-            return 95; 
+            const spokenClean = cleanStr(spoken); const mainWordClean = cleanStr(wordObj.word); const spellClean = cleanStr(wordObj.spell);
+            if (!spokenClean) return 0; if (spokenClean === mainWordClean || spokenClean === spellClean) return 100;
+            const spokenWords = spokenClean.split(/\s+/).filter(Boolean); const spellWords = spellClean.split(/\s+/).filter(Boolean);
+            const lastSpokenWord = spokenWords[spokenWords.length - 1] || "";
+            const hasMainWord = spokenWords.includes(mainWordClean) || lastSpokenWord === mainWordClean;
+            if (!hasMainWord) return Math.min(60, Math.round((spokenClean.includes(mainWordClean[0]) ? 40 : 20)));
+            if (spokenWords.length === 1 && spokenWords[0] === mainWordClean) return 100;
+            let spellMatched = 0; spellWords.forEach(w => { if (spokenWords.includes(w)) spellMatched++; });
+            const spellRatio = spellWords.length > 0 ? (spellMatched / spellWords.length) : 1;
+            if (spellRatio >= 0.8) return 100; else return Math.round(85 + (spellRatio / 0.8) * 10);
         };
 
         const calculateSentenceScore = (spoken, targetSentence) => {
-            const spokenClean = cleanStr(spoken); 
-            if (!spokenClean) return 0; 
-            // Luôn đánh giá cao giọng đọc câu của học sinh
-            return 95; 
+            const spokenClean = cleanStr(spoken); const targetClean = cleanStr(targetSentence);
+            if (!spokenClean) return 0; if (spokenClean === targetClean) return 100;
+            const spokenWords = spokenClean.split(/\s+/).filter(Boolean); const targetWords = targetClean.split(/\s+/).filter(Boolean);
+            let matched = 0; let targetIdx = 0;
+            spokenWords.forEach(word => {
+                const foundIdx = targetWords.indexOf(word, targetIdx);
+                if (foundIdx !== -1) { matched++; targetIdx = foundIdx + 1; }
+            });
+            const percent = Math.round((matched / targetWords.length) * 100);
+            return Math.min(100, percent);
         };
 
         const speakText = async (text, rate = 0.85) => {
@@ -208,14 +219,14 @@
                 return { p1: [], p2: [], p3: [] };
             });
 
-            // Cập nhật mức tối thiểu mặc định là 30%, xuất sắc là 60%
+            // State cài đặt mức độ đọc
             const [passThreshold, setPassThreshold] = useState(() => {
                 const saved = localStorage.getItem(STORAGE_KEY_PASS_THRESH);
-                return saved !== null ? Number(saved) : 30;
+                return saved !== null ? Number(saved) : 85;
             }); 
             const [perfectThreshold, setPerfectThreshold] = useState(() => {
                 const saved = localStorage.getItem(STORAGE_KEY_PERFECT_THRESH);
-                return saved !== null ? Number(saved) : 60;
+                return saved !== null ? Number(saved) : 100;
             }); 
 
             const [activeTab, setActiveTab] = useState('p1');
@@ -284,7 +295,7 @@
                     if (percent >= currentPassThreshold) {
                         setScores(prev => { const newScore = prev.p1 + 1; if (newScore > 0 && newScore % 10 === 0) { triggerMegaFireworks(); setShowMilestone(true); } return { ...prev, p1: newScore }; });
                         setCompletedHistory(prev => { if (!prev.p1.includes(targetWord)) return { ...prev, p1: [...prev.p1, targetWord] }; return prev; });
-                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Tuyệt vời! Bé đọc rất xuất sắc! (${percent}%)` : `✔️ Bé đọc rất tốt! (${percent}%)`;
+                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Tuyệt vời! Bé đọc chính xác 100%! (${percent}%)` : `✔️ Bé đọc rất tốt! (${percent}%)`;
                         setFeedbackState({ status: 'correct', msg: successMsg });
                     } else { setFeedbackState({ status: 'wrong', msg: `❌ Chưa chính xác lắm (${percent}%). AI nghe được: "${transcript}". Bé hãy thử lại nhé!` }); }
                 } else if (currentTab === 'p2') {
@@ -295,7 +306,7 @@
                     if (percent >= currentPassThreshold) {
                         setScores(prev => { const newScore = prev.p2 + 1; if (newScore > 0 && newScore % 10 === 0) { triggerMegaFireworks(); setShowMilestone(true); } return { ...prev, p2: newScore }; });
                         setCompletedHistory(prev => { if (!prev.p2.includes(targetSentenceOrigin)) return { ...prev, p2: [...prev.p2, targetSentenceOrigin] }; return prev; });
-                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Rất xuất sắc! Bé đọc câu tuyệt vời! (${percent}%)` : `✔️ Bé đọc câu rất tốt! (${percent}%)`;
+                        const successMsg = percent >= currentPerfectThreshold ? `✔️ Rất xuất sắc! Bé đọc đúng 100%! (${percent}%)` : `✔️ Bé đọc câu rất tuyệt vời! (${percent}%)`;
                         setFeedbackState({ status: 'correct', msg: successMsg });
                     } else { setFeedbackState({ status: 'wrong', msg: `❌ Chưa đúng (${percent}%). AI nghe được: "${transcript}". Bé thử đọc lại nhé!` }); }
                 }
@@ -354,7 +365,7 @@
             const handleResetDefault = () => {
                 if (window.confirm("Khôi phục mặc định và xoá lịch sử học tập?")) {
                     setData(initialRawData); setAdminPassword(ADMIN_PASSWORD_DEFAULT); setCompletedHistory({ p1: [], p2: [], p3: [] });
-                    setPassThreshold(30); setPerfectThreshold(60);
+                    setPassThreshold(85); setPerfectThreshold(100);
                     localStorage.removeItem(STORAGE_KEY_DATA); localStorage.removeItem(STORAGE_KEY_PASS); localStorage.removeItem(STORAGE_KEY_HISTORY);
                     localStorage.removeItem(STORAGE_KEY_PASS_THRESH); localStorage.removeItem(STORAGE_KEY_PERFECT_THRESH); 
                     alert("Đã khôi phục thành công!");
@@ -533,7 +544,7 @@
                                             <div className="flex justify-between"><span className="font-bold text-sm">Phần 3:</span><input type="number" min="10" max="300" value={data.p3Count} onChange={(e) => handleUpdateCounts(data.p1Count, data.p2Count, Number(e.target.value))} className="w-24 p-1 border-2 rounded text-center" /></div>
                                         </div>
 
-                                        {/* Cấu hình Ngưỡng điểm */}
+                                        {/* Cấu hình Ngưỡng điểm (Mới thêm) */}
                                         <div className="bg-sky-50 p-4 rounded-2xl border-2 border-sky-200 space-y-4 mt-4">
                                             <h3 className="font-black text-sky-800">🎯 Cài đặt mức độ đọc đúng (%):</h3>
                                             <div className="flex justify-between items-center">
